@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4cffc3">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jadwal Harian Produktif</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* :root {
+      --emerald: #4cffc3;
+      --emerald-100: #d1fae5;
+      --sky: #1ca2e6;
+      --sky-100: #e0f2fe;
+      --slate-900: #0f172a;
+    } */
+   :root {
+  --emerald: #FFD700;   /* emas utama */
+  --emerald-100: #FFF4CC; /* emas muda */
+  --sky: #1E3A8A;       /* biru tua */
+  --sky-100: #BFDBFE;   /* biru muda */
+  --slate-900: #0f172a; /* biarkan untuk teks gelap */
+   }
+
+
+    body { font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    /* Progress ring with conic gradient */
+    .ring-progress {
+      background:
+        conic-gradient(var(--emerald) calc(var(--p) * 1%), rgba(255,255,255,0.15) 0%),
+        radial-gradient(farthest-side, white 75%, transparent 76%) top/100% 100% no-repeat;
+      border-radius: 9999px;
+    }
+    /* Subtle glass blur */
+    .glass {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    /* Print styles */
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+    }
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      transform: translate(-50%, -120%);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-yellow-500 text-white">
+
+  <div class="max-w-6xl mx-auto px-5 py-10">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+        <div>
+          <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Jadwal Harian Produktif (Weekday)</h1>
+          <p id="today" class="text-white/80 mt-1"></p>
+        </div>
+
+        <!-- Progress -->
+        <div class="flex items-center gap-4">
+          <div class="relative w-16 h-16 ring-progress" id="progressRing" style="--p:0;">
+            <div class="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-500" id="progressText">0%</div>
+          </div>
+          <div class="text-sm leading-tight">
+            <p class="font-semibold">Progress hari ini</p>
+            <p class="text-white/80" id="progressDetail">0 dari 22 aktivitas</p>
+          </div>
+        </div>
+      </div>
+      <p class="mt-4 text-white/90 max-w-2xl">Tandai yang sudah selesai, filter aktivitas, dan lihat versi garis waktu. Semua dirancang agar rapi dan enak dilihat.</p>
+    </header>
+
+    <!-- Controls -->
+    <section class="no-print">
+      <div class="glass bg-white/10 rounded-2xl p-4 md:p-5 shadow-xl ring-1 ring-white/10">
+        <div class="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+          <!-- Category filters -->
+          <div class="flex flex-wrap gap-2">
+            <button data-cat="Semua" class="cat-btn active px-4 py-2 rounded-full bg-white text-slate-900 font-semibold hover:opacity-90 transition">Semua</button>
+            <button data-cat="Produktif" class="cat-btn px-4 py-2 rounded-full bg-emerald-400/20 text-white border border-emerald-300/30 hover:bg-emerald-400/30 transition">Produktif +</button>
+            <button data-cat="Rutinitas" class="cat-btn px-4 py-2 rounded-full bg-sky-400/20 text-white border border-sky-300/30 hover:bg-sky-400/30 transition">Rutinitas =</button>
+          </div>
+
+          <!-- Search and actions -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative">
+              <input id="searchInput" type="text" placeholder="Cari aktivitas..." class="w-full sm:w-64 px-4 py-2 rounded-xl bg-white/10 placeholder-white/70 text-white outline-none ring-1 ring-white/20 focus:ring-white/40" />
+              <svg class="w-5 h-5 text-white/70 absolute right-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 4a6 6 0 104.472 10.027l4.25 4.25a1 1 0 001.414-1.414l-4.25-4.25A6 6 0 0010 4zm-4 6a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div class="flex gap-2">
+              <button id="printBtn" class="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition">Cetak</button>
+              <button id="resetBtn" class="px-4 py-2 rounded-xl bg-white text-slate-900 font-semibold hover:opacity-90 transition">Reset centang</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="mt-4 border-t border-white/10 pt-4">
+          <div class="flex gap-2">
+            <button data-view="kartu" class="tab-btn active px-4 py-2 rounded-xl bg-white text-slate-900 font-semibold">Tampilan Kartu</button>
+            <button data-view="timeline" class="tab-btn px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">Garis Waktu 24 Jam</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Views -->
+    <main class="mt-6 space-y-6">
+      <!-- Card View -->
+      <section id="cardView" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+        <!-- Cards injected here -->
+      </section>
+
+      <!-- Timeline View -->
+      <section id="timelineView" class="hidden">
+        <div class="glass bg-white/10 rounded-2xl p-4 md:p-5 shadow-xl ring-1 ring-white/10">
+          <!-- Legend -->
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <span class="text-white/90 font-semibold">Legenda:</span>
+            <span class="inline-flex items-center gap-2 text-sm">
+              <span class="w-3 h-3 rounded-full" style="background: var(--emerald);"></span> Produktif
+            </span>
+            <span class="inline-flex items-center gap-2 text-sm">
+              <span class="w-3 h-3 rounded-full" style="background: var(--sky);"></span> Rutinitas
+            </span>
+            <span class="inline-flex items-center gap-2 text-sm">
+              <span class="w-3 h-3 rounded-full bg-white"></span> Penanda waktu
+            </span>
+          </div>
+
+          <!-- Scale -->
+          <div class="relative overflow-x-auto">
+            <div class="min-w-[900px]">
+              <div class="relative h-24 rounded-xl bg-white/5 ring-1 ring-white/10 overflow-hidden" id="timelineTrack">
+                <!-- Hour grid -->
+                <div id="gridLines" class="absolute inset-0"></div>
+                <!-- Now marker -->
+                <div id="nowMarker" class="absolute top-0 bottom-0 w-0.5 bg-white/90"></div>
+                <!-- Blocks -->
+                <div id="timelineBlocks" class="absolute inset-0"></div>
+              </div>
+              <div class="flex justify-between text-xs text-white/80 mt-2 px-1">
+                <span>00.00</span><span>06.00</span><span>12.00</span><span>18.00</span><span>24.00</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-white/75 text-sm mt-3">Tip: Geser ke samping jika perlu. Klik blok untuk menandai selesai.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-10 text-center text-white/70 text-sm">
+      Dibuat dengan cinta oleh Canva Code • Tetap konsisten, hasilnya ikut.
+    </footer>
+  </div>
+
+  <!-- Tooltip for timeline -->
+  <div id="tooltip" class="tooltip bg-black/70 text-white text-xs px-3 py-1 rounded-lg shadow-lg hidden z-50"></div>
+  <audio id="notifAudio" src="just-saying-593.mp3" preload="auto"></audio>
+  <script>
+    // ----- Data -----
+    const rawData = [
+
+  { start: "04:51", end: "05:00", title: "Salat Subuh", sym: "=" },
+  { start: "12:08", end: "12:15", title: "Salat Dzuhur", sym: "=" },
+  { start: "15:30", end: "15:40", title: "Salat Ashar", sym: "=" },
+  { start: "18:05", end: "18:15", title: "Salat Magrib", sym: "=" },
+  { start: "19:17", end: "19:30", title: "Salat Isya", sym: "=" },
+      { start: "05:30", end: "05:45", title: "Bangun tidur, merapikan tempat tidur", sym: "=" },
+      { start: "05:45", end: "06:00", title: "Cuci muka, sikat gigi", sym: "=" },
+      { start: "06:00", end: "06:30", title: "Stretching ringan / olahraga ringan", sym: "+" },
+      { start: "06:30", end: "06:45", title: "Mandi pagi", sym: "=" },
+      { start: "06:45", end: "07:15", title: "Sarapan", sym: "=" },
+      { start: "07:15", end: "07:45", title: "Membaca buku / jurnal (self-growth)", sym: "+" },
+      { start: "07:45", end: "08:00", title: "Beres-beres kamar / rumah kecil-kecilan", sym: "+" },
+      { start: "08:00", end: "12:00", title: "Fokus kerja / belajar utama", sym: "+" },
+      { start: "12:00", end: "12:15", title: "Istirahat sejenak / stretching ringan", sym: "+" },
+      { start: "12:15", end: "13:00", title: "Makan siang & istirahat singkat", sym: "=" },
+      { start: "13:00", end: "15:00", title: "Fokus kerja / belajar lanjutan", sym: "+" },
+      { start: "15:00", end: "15:15", title: "Minum teh / kopi sore & refleksi", sym: "=" },
+      { start: "15:15", end: "16:30", title: "Aktivitas ringan (hobi, proyek pribadi)", sym: "+" },
+      { start: "16:30", end: "17:00", title: "Olahraga ringan / jalan sore", sym: "+" },
+      { start: "17:00", end: "17:30", title: "Mandi sore", sym: "=" },
+      { start: "17:30", end: "18:00", title: "Waktu tenang / ibadah / meditasi", sym: "+" },
+      { start: "18:00", end: "18:30", title: "Makan malam", sym: "=" },
+      { start: "18:30", end: "19:00", title: "Waktu keluarga / bersosialisasi", sym: "+" },
+      { start: "19:00", end: "20:00", title: "Belajar ringan / online course / nonton edukatif", sym: "+" },
+      { start: "20:00", end: "20:30", title: "Persiapan tidur, skincare, journaling", sym: "+" },
+      { start: "20:30", end: "21:00", title: "Baca buku / relaksasi sebelum tidur", sym: "+" },
+      { start: "22:00", end: "05:00", title: "Tidur", sym: "=" },
+    ];
+    const items = rawData.map((d, i) => ({
+      id: `${d.start}-${d.end}-${d.title}`.replace(/\s+/g, '_'),
+      start: d.start,
+      end: d.end,
+      title: d.title,
+      category: d.sym === '+' ? 'Produktif' : 'Rutinitas',
+    }));
+
+    // ----- State -----
+    const state = {
+      category: 'Semua',
+      search: '',
+      view: 'kartu',
+      done: loadDone(),
+    };
+
+    // ----- Helpers -----
+    function toMinutes(t) {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function fmtTime(t) {
+      return t;
+    }
+    function saveDone() {
+      localStorage.setItem('jadwal_done_v1', JSON.stringify(state.done));
+    }
+    function loadDone() {
+      try {
+        const r = JSON.parse(localStorage.getItem('jadwal_done_v1') || '{}');
+        return r && typeof r === 'object' ? r : {};
+      } catch {
+        return {};
+      }
+    }
+    function filteredItems() {
+      return items.filter(it => {
+        const matchCat = state.category === 'Semua' || it.category === state.category;
+        const matchSearch = it.title.toLowerCase().includes(state.search.toLowerCase());
+        return matchCat && matchSearch;
+      });
+    }
+
+    // ----- Render Progress -----
+    function renderProgress() {
+      const total = items.length;
+      const doneCount = Object.values(state.done).filter(Boolean).length;
+      const percent = Math.round((doneCount / total) * 100);
+      const ring = document.getElementById('progressRing');
+      const txt = document.getElementById('progressText');
+      const detail = document.getElementById('progressDetail');
+      ring.style.setProperty('--p', percent);
+      txt.textContent = `${percent}%`;
+      detail.textContent = `${doneCount} dari ${total} aktivitas`;
+    }
+
+    // ----- Render Date -----
+    function renderToday() {
+      const el = document.getElementById('today');
+      const now = new Date();
+      const s = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      el.textContent = s;
+    }
+
+    // ----- Icons -----
+    function iconFor(category) {
+      if (category === 'Produktif') {
+        return `<svg class="w-4 h-4 text-emerald-300" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 12l2 2 4-4a1 1 0 111.414 1.414l-4.95 4.95a1 1 0 01-1.414 0L7.586 13.95A1 1 0 019 12z"/>
+        </svg>`;
+      }
+      return `<svg class="w-4 h-4 text-sky-300" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 6a1 1 0 011 1v4h3a1 1 0 110 2h-4a1 1 0 01-1-1V7a1 1 0 011-1zM7 20a1 1 0 110-2h10a1 1 0 110 2H7z"/>
+      </svg>`;
+    }
+
+    // ----- Render Card View -----
+    function renderCards() {
+      const container = document.getElementById('cardView');
+      const list = filteredItems().slice().sort((a,b) => toMinutes(a.start) - toMinutes(b.start));
+      container.innerHTML = list.map(it => {
+        const done = !!state.done[it.id];
+        const chipColor = it.category === 'Produktif'
+          ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/30'
+          : 'bg-sky-400/15 text-sky-200 ring-1 ring-sky-300/30';
+        const borderGrad = it.category === 'Produktif'
+          ? 'from-emerald-400/50 to-transparent'
+          : 'from-sky-400/50 to-transparent';
+        return `
+          <article class="group relative rounded-2xl bg-white/10 glass p-4 md:p-5 ring-1 ring-white/10 shadow-xl hover:shadow-2xl transition ${done ? 'opacity-60' : ''}">
+            <div class="absolute inset-0 rounded-2xl pointer-events-none bg-gradient-to-br ${borderGrad} opacity-0 group-hover:opacity-100 transition"></div>
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 text-sm text-white/80">
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full ${chipColor}">
+                    ${iconFor(it.category)}
+                    ${it.category}
+                  </span>
+                  <span class="text-white/50">•</span>
+                  <span class="font-semibold">${fmtTime(it.start)} — ${fmtTime(it.end)}</span>
+                </div>
+                <h3 class="mt-2 font-semibold text-lg leading-snug">${it.title}</h3>
+              </div>
+              <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" data-check="${it.id}" ${done ? 'checked' : ''} class="peer sr-only">
+                <span class="w-6 h-6 rounded-md ring-2 ring-gray-300 bg-white flex items-center justify-center 
+                 peer-checked:bg-green-500 peer-checked:ring-green-400 transition">
+                  <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4 1.5 1.5-5.5 5.5L7.5 13.5 9 12z"/></svg>
+                </span>
+              </label>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      // Attach checkbox listeners
+      container.querySelectorAll('input[type="checkbox"][data-check]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const id = e.target.getAttribute('data-check');
+          state.done[id] = e.target.checked;
+          saveDone();
+          renderProgress();
+          renderCards();  // re-render to reflect opacity
+          renderTimeline(); // reflect done on timeline
+        });
+      });
+    }
+
+    // ----- Render Timeline View -----
+    function renderGridLines() {
+      const grid = document.getElementById('gridLines');
+      const hours = 24;
+      const frag = document.createDocumentFragment();
+      // Clear
+      grid.innerHTML = '';
+      for (let h = 0; h <= hours; h++) {
+        const line = document.createElement('div');
+        line.style.position = 'absolute';
+        line.style.top = '0';
+        line.style.bottom = '0';
+        line.style.width = h % 6 === 0 ? '2px' : '1px';
+        line.style.background = 'rgba(255,255,255,' + (h % 6 === 0 ? '0.25' : '0.12') + ')';
+        line.style.left = (h / 24) * 100 + '%';
+        frag.appendChild(line);
+      }
+      grid.appendChild(frag);
+    }
+
+    function blockColor(cat) {
+      return cat === 'Produktif' ? 'var(--emerald)' : 'var(--sky)';
+    }
+
+    function renderTimeline() {
+      const track = document.getElementById('timelineBlocks');
+      const filtered = filteredItems().slice();
+      // Clear
+      track.innerHTML = '';
+
+      const nowMin = (() => { const d = new Date(); return d.getHours()*60 + d.getMinutes(); })();
+
+      filtered.forEach(it => {
+        const s = toMinutes(it.start);
+        const e = toMinutes(it.end);
+        const done = !!state.done[it.id];
+        const color = blockColor(it.category);
+
+        function makeBlock(startMin, endMin, suffix='') {
+          const duration = (endMin - startMin);
+          const leftPct = (startMin / 1440) * 100;
+          const widthPct = (duration / 1440) * 100;
+
+          const block = document.createElement('div');
+          block.className = `absolute top-1/2 -translate-y-1/2 h-10 rounded-xl shadow-lg cursor-pointer`;
+          block.style.left = `${leftPct}%`;
+          block.style.width = `${widthPct}%`;
+          block.style.background = color;
+          block.style.opacity = done ? '0.45' : '0.95';
+          block.style.border = '1px solid rgba(255,255,255,0.25)';
+          block.setAttribute('data-id', it.id);
+
+          // Inner text
+          const inner = document.createElement('div');
+          inner.className = 'text-xs font-semibold text-white truncate px-3 h-full flex items-center';
+          inner.textContent = `${it.title}`;
+          block.appendChild(inner);
+
+          // Click to toggle done
+          block.addEventListener('click', () => {
+            state.done[it.id] = !state.done[it.id];
+            saveDone();
+            renderProgress();
+            renderCards();
+            renderTimeline();
+          });
+
+          // Hover tooltip
+          block.addEventListener('mousemove', (ev) => showTooltip(ev, `${it.title} • ${fmtTime(it.start)}—${fmtTime(it.end)} • ${it.category}`));
+          block.addEventListener('mouseleave', hideTooltip);
+
+          track.appendChild(block);
+        }
+
+        // Handle crossing midnight
+        if (e > s) {
+          makeBlock(s, e);
+        } else {
+          // Split into two: s->1440 and 0->e
+          makeBlock(s, 1440, 'A');
+          makeBlock(0, e, 'B');
+        }
+      });
+
+      // Now marker
+      updateNowMarker();
+    }
+
+    function updateNowMarker() {
+      const marker = document.getElementById('nowMarker');
+      const now = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      marker.style.left = (minutes / 1440) * 100 + '%';
+    }
+
+    // Tooltip controls
+    const tooltip = document.getElementById('tooltip');
+    function showTooltip(ev, text) {
+      tooltip.textContent = text;
+      tooltip.style.left = ev.pageX + 'px';
+      tooltip.style.top = ev.pageY + 'px';
+      tooltip.classList.remove('hidden');
+    }
+    function hideTooltip() {
+      tooltip.classList.add('hidden');
+    }
+
+    // ----- Controls wiring -----
+    function setActiveCatBtn() {
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-cat') === state.category;
+        btn.classList.toggle('bg-white', isActive);
+        btn.classList.toggle('text-slate-900', isActive);
+        btn.classList.toggle('font-semibold', isActive);
+      });
+    }
+
+    function setActiveTab() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-view') === state.view;
+        btn.classList.toggle('bg-white', isActive);
+        btn.classList.toggle('text-slate-900', isActive);
+        btn.classList.toggle('font-semibold', isActive);
+        btn.classList.toggle('bg-white/10', !isActive);
+        btn.classList.toggle('text-white', !isActive);
+      });
+      document.getElementById('cardView').classList.toggle('hidden', state.view !== 'kartu');
+      document.getElementById('timelineView').classList.toggle('hidden', state.view !== 'timeline');
+    }
+
+    function wireControls() {
+      // Category buttons
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.category = btn.getAttribute('data-cat');
+          setActiveCatBtn();
+          renderCards();
+          renderTimeline();
+        });
+      });
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.view = btn.getAttribute('data-view');
+          setActiveTab();
+        });
+      });
+      // Search
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        state.search = e.target.value;
+        renderCards();
+        renderTimeline();
+      });
+      // Print & Reset
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('Yakin reset semua centang?')) {
+          state.done = {};
+          saveDone();
+          renderProgress();
+          renderCards();
+          renderTimeline();
+        }
+      });
+    }
+
+    // ----- Init -----
+    function init() {
+      renderToday();
+      renderProgress();
+      renderGridLines();
+      setActiveCatBtn();
+      setActiveTab();
+      renderCards();
+      renderTimeline();
+      wireControls();
+      // Update "now" marker per menit
+      setInterval(updateNowMarker, 60 * 1000);
+    }
+
+    init();
+    // ===== Notifikasi 5 Menit Sebelum Aktivitas =====
+const audio = document.getElementById('notifAudio');
+const notifiedToday = new Set();
+
+function checkForUpcomingActivities() {
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  items.forEach(item => {
+    const id = item.id;
+    if (notifiedToday.has(id)) return;
+
+    const endMinutes = toMinutes(item.end);
+    const triggerMinutes = (endMinutes - 5 + 1440) % 1440;
+
+    if (nowMinutes === triggerMinutes) {
+      notifiedToday.add(id);
+      showActivityNotification(item.title);
+    }
+  });
+}
+
+function showActivityNotification(title) {
+  if (Notification.permission === 'granted') {
+    new Notification("Sebentar lagi:", {
+      body: title,
+      icon: "Logo.png" 
+    });
+  }
+  audio.play().catch(() => {});
+}
+
+// Minta izin notifikasi
+if (Notification && Notification.permission !== 'granted') {
+  Notification.requestPermission();
+}
+
+// Jalankan setiap menit
+setInterval(checkForUpcomingActivities, 60 * 1000);
+
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96b617bdb7b1b5b8',t:'MTc1NDU2MjU2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('Service Worker terdaftar'))
+      .catch(err => console.log('SW gagal:', err));
+  }
+</script>
+
+</body>
+</html>
